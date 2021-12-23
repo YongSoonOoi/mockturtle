@@ -40,6 +40,44 @@ TEST_CASE( "CEC simple AIG", "[cec]" )
   CHECK( st.rounds == 1 );
 }
 
+TEST_CASE( "CEC SELF_MADE", "[cec]" )
+{
+  aig_network aig1;
+
+  const auto a1 = aig1.create_pi();
+  const auto b1 = aig1.create_pi();
+  const auto c1 = aig1.create_pi();
+  const auto a11 = aig1.create_pi();
+  const auto b11 = aig1.create_pi();
+  const auto c11 = aig1.create_pi();
+  const auto f11 = aig1.create_and( a1, b1 );
+  const auto f21 = aig1.create_and( a11, b11 );
+  const auto f31 = aig1.create_and( c1, c11 );
+  const auto f41 = aig1.create_and( f11, f21 );
+  const auto f51 = aig1.create_and( f31, f41 );
+  aig1.create_po( f51 );
+
+  aig_network aig2;
+
+  const auto a2 = aig2.create_pi();
+  const auto b2 = aig2.create_pi();
+  const auto c2 = aig2.create_pi();
+  const auto a12 = aig2.create_pi();
+  const auto b12 = aig2.create_pi();
+  const auto c12 = aig2.create_pi();
+  const auto f12 = aig2.create_and( a2, b2 );
+  const auto f22 = aig2.create_and( a12, b12 );
+  const auto f32 = aig2.create_and( c2, c12 );
+  const auto f42 = aig2.create_and( f12, f22 );
+  const auto f52 = aig2.create_and( f32, f42 );
+  aig2.create_po( f52 );
+
+  simulation_cec_stats st;
+  CHECK( *simulation_cec( aig1, aig2, &st ) );
+  CHECK( st.split_var == 6 );
+  CHECK( st.rounds == 1 );
+}
+
 TEST_CASE( "CEC different #PIs", "[cec]" )
 {
   xag_network xag1;
