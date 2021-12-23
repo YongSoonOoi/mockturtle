@@ -74,11 +74,77 @@ public:
   bool run()
   {
     /* TODO: write your implementation here */
-    return false;
+    _st.split_var = compute_split_var(_ntk.num_pis());
+    _st.rounds = compute_rounds(_ntk.num_pis(), _st.split_var);
+    pattern_t patterns(_ntk);
+    init_patterns(patterns, _st.split_var);
+
+    /* Verifications */
+    for (auto i = 0u; i<=_ntk.num_pis(); i++){
+      std::cout << "patterns "  << i << " : " << to_binary(patterns[i]) << std::endl;
+    }
+    std::cout << "N : " << _ntk.num_pis() << std::endl;
+    std::cout << "split_var : " << _st.split_var << std::endl;
+    std::cout << "num of rounds : " << _st.rounds << std::endl;
+    
+    /* 1st_simulation */
+    default_simulator<kitty::dynamic_truth_table> sim(_st.split_var);
+    const std::vector<kitty::dynamic_truth_table> tt = simulate<kitty::dynamic_truth_table>(_ntk, sim);
+    for(auto& po : tt){
+      std::cout << "Output is matching? If yes, you should get 0 here: " << !kitty::is_const0(po) << std::endl;
+      if(!kitty::is_const0(po)) return false;       //if patterns(get_po(N)) != 0 then return not equivalent
+    }
+
+    /* 2nd_simulation_onwards */
+    for ( uint32_t i = 1; i <= _st.rounds; i++ )
+    {
+      update_patterns( _ntk, _st.split_var, i);
+      default_simulator<kitty::dynamic_truth_table> sim(_st.split_var);                                  
+      const std::vector<kitty::dynamic_truth_table> tt = simulate<kitty::dynamic_truth_table>(_ntk, sim); //simulate_nodes
+      for(auto& po : tt){
+        std::cout << "Output is matching? If yes, you should get 0 here(2): " << !kitty::is_const0(po) << std::endl;
+        if(!kitty::is_const0(po)) return false;       //if patterns(get_po(N)) != 0 then return not equivalent
+      }
+    }
+
+    return true;
+
   }
 
 private:
   /* you can add additional methods here */
+
+  uint32_t compute_split_var(uint32_t N){                                           // function to compute split_var 
+    uint32_t M = log( (1 << 29) / _ntk._storage->nodes.size() - 32 ) / log(2) + 3 ; // for (32+2^(m-3))*V =< 2^29 (512MB)
+    return N < 7 ? N : std::min(N,(uint32_t)M) ;                                    // constraints of split_var : = n if n < 7; else = max of m /{ 6 < m =< n; (32+2^(m-3))*V =< 2^29 }
+  }
+
+  uint32_t compute_rounds(uint32_t N, uint32_t SV){ // function to compute number of rounds
+    return 1 << (N - SV) ;                          // SV = split_var here
+  }
+
+  void init_patterns(pattern_t pattern, uint32_t SV){ // function to initialize the patterns, put 0 in the truth table if i > split_var
+    _ntk.foreach_pi( [&]( auto const& i ){
+      kitty::dynamic_truth_table tt (SV);
+      if( i <= SV) {                      //if i is smaller than split_var, then construct the truth table as normal
+        kitty::create_nth_var( tt, i-1 );
+      }                                   
+      pattern[i-1] = tt;                  //if not, then put all 0 in the truth table
+      //std::cout << "i-1: "  << i-1 << std::endl;
+    });
+  }
+
+  void update_patterns(pattern_t pattern, uint32_t SV, uint32_t round){ // function to update the patterns, now we need to think what to put in the truth table if i > split_var    
+    _ntk.foreach_pi( [&]( auto const& i ){
+      kitty::dynamic_truth_table tt (SV);
+      if( i <= SV) {                    
+        kitty::create_nth_var( tt, i-1 );
+      }                
+                         
+      pattern[i-1] = tt;
+      //std::cout << "i-1: "  << i-1 << std::endl;
+    });
+  }
 
 private:
   Ntk& _ntk;
