@@ -126,9 +126,9 @@ private:
   void init_patterns(pattern_t pattern, uint32_t SV){ // function to initialize the patterns, put 0 in the truth table if i > split_var
     _ntk.foreach_pi( [&]( auto const& i ){
       kitty::dynamic_truth_table tt (SV);
-      if( i <= SV) {                      //if i is smaller than split_var, then construct the truth table as normal
+      if(i <= SV){                      //if i is smaller than split_var, then construct the truth table as normal
         kitty::create_nth_var( tt, i-1 );
-      }                                   
+      }
       pattern[i-1] = tt;                  //if not, then put all 0 in the truth table
       //std::cout << "i-1: "  << i-1 << std::endl;
     });
@@ -137,11 +137,18 @@ private:
   void update_patterns(pattern_t pattern, uint32_t SV, uint32_t round){ // function to update the patterns, now we need to think what to put in the truth table if i > split_var    
     _ntk.foreach_pi( [&]( auto const& i ){
       kitty::dynamic_truth_table tt (SV);
-      if( i <= SV) {                    
+      if(i <= SV){                    
         kitty::create_nth_var( tt, i-1 );
-      }                
-                         
-      pattern[i-1] = tt;
+        pattern[i-1] = tt;  
+      }
+      else {
+        if( (round>>(i-SV-1)) % 2 ){
+          pattern[i-1] = tt; 
+        }
+        else{
+          pattern[i-1] = ~tt; 
+        }                 
+      }              
       //std::cout << "i-1: "  << i-1 << std::endl;
     });
   }
